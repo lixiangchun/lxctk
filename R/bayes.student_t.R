@@ -1,0 +1,24 @@
+
+bayes.student_t <- function(vals, stanDso, ...)
+{
+	Ny <- length(vals)
+	if ( any( !is.finite(vals) ) ) { stop("All y values must be finite.") }
+
+	dataList = list(y = vals, Ntotal = Ny, meanY = mean(vals), sdY = sd(vals))
+	parameters = c( "mu" , "sigma" , "nu" )     # The parameters to be monitored
+
+	# Get MC sample of posterior:
+	stanFit <- sampling(object=stanDso, data=dataList, pars=parameters, ...)
+
+	#stanFit <- sampling( object=stanDso, data = dataList, 
+	#                     pars = parameters, # optional
+	#                     chains = nChains, iter = 4000, warmup = 2000, thin = thinSteps )
+	#
+	# For consistency with JAGS-oriented functions in DBDA2E collection, 
+	# convert stan format to coda format:
+	##codaSamples = mcmc.list( lapply( 1:ncol(stanFit) , 
+	##                                function(x) { mcmc(as.array(stanFit)[,x,]) } ) )
+
+	stanFit
+}
+
