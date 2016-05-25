@@ -31,7 +31,7 @@ plot.mutation.signature(df, figpdf=NULL)
 plot.mutation.signature(df)
 
 ## Not run
-plot.mutational.processes(mutational.processes.file = system.file('data/Rank_eq_5.processes.txt',package='lxctk'), figpdf=NULL)
+plot.mutational.processes(mutational.processes.file = system.file('data/Rank_eq_9.processes.txt',package='lxctk'), figpdf=NULL)
 
 plot.mutational.processes(mutational.processes.file = system.file('data/Rank_eq_5.processes.txt',package='lxctk'))
 

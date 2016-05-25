@@ -45,7 +45,7 @@ plot.mutational.exposures(d[,mutationalSignatureNames])
 plot.mutational.exposures(d[,mutationalSignatureNames],clustid)
 
 ## Or
-plot.mutational.exposures(NULL,system.file('data/Rank_eq_5.exposures.txt',package='lxctk'))
+plot.mutational.exposures(NULL,system.file('data/Rank_eq_9.exposures.txt',package='lxctk'))
 
 }
 
