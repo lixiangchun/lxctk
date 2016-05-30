@@ -84,7 +84,7 @@ context3d<-function(z,alpha=1,scalexy=10,scalez=1,gap=0.2,
   axes3d("y-+",labels=TRUE)
 }
 
-legoplot <- function(originalGenomes_file=system.file('data/stad_regular_GC_originalGenomes.txt'), alpha=0.8, scalez=0.15, gap=0.1, contexts_file=system.file('data/contexts.txt'), snapshot_fig, piechart_fig)
+legoplot <- function(originalGenomes_file=system.file('data/stad_regular_GC_originalGenomes.txt', package='lxctk'), alpha=0.8, scalez=0.5, gap=0.1, contexts_file=system.file('data/contexts.txt',package='lxctk'), snapshot_fig, piechart_fig)
 {
 	library(rgl)
 	#contexts <- read.table('/Users/lixiangchun/Public/WorkSpace/Project/DigestiveSystemCancer/LiverCancer/decipherMutationalProcesses/mult/contexts.txt',header=FALSE,stringsAsFactors=FALSE)
@@ -116,11 +116,9 @@ legoplot <- function(originalGenomes_file=system.file('data/stad_regular_GC_orig
 	y <- by(counts, contexts$V2, sum)
 	if (!missing(piechart_fig)) {
 		pdf('pie.pdf',width=5, height=4)
-	}
-
-	pie(y,col=col1)
-
-	if (!missing(piechart_fig)) {
+		pie(y,col=col1)
 		dev.off()
+		print(y)
+		print(y/sum(y))
 	}
 }
