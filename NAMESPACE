@@ -78,4 +78,6 @@ export(DbdaDensPlot)
 export(diag.mcmc)
 #export(diagStanFit)
 
+export(legoplot)
+
 export(rank.based.INT)
