@@ -144,7 +144,7 @@ HDIofMCMC = function( sampleVec , credMass=0.95 ) {
 
 HDIofMCMC_for_stanfit <- function(stanFit, credMass=0.95) {
 	codaFit<- stanfit2mcmc.list(stanFit)
-	parNames <- rownames(summary(SLC12A7_tumor_vs_normal)$summary)
+	parNames <- rownames(summary(stanFit)$summary)
 	results <- list()
 	for (parName in parNames) {
 		x <- do.call('cbind',codaFit[,parName])
