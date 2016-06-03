@@ -142,6 +142,21 @@ HDIofMCMC = function( sampleVec , credMass=0.95 ) {
   return( HDIlim )
 }
 
+HDIofMCMC_for_stanfit <- function(stanFit, credMass=0.95) {
+	codaFit<- stanfit2mcmc.list(stanFit)
+	parNames <- rownames(summary(SLC12A7_tumor_vs_normal)$summary)
+	results <- list()
+	for (parName in parNames) {
+		x <- do.call('cbind',codaFit[,parName])
+		HDIlim <- HDIofMCMC(apply(x, 1, mean), credMass)
+		results[[parName]] <- HDIlim
+	}
+	x <- do.call('rbind',results)
+	credMass_half <- (1 - credMass) / 2
+	colnames(x) <- c(sprintf("%s%s",100*credMass_half,"%"), sprintf("%s%s", 100*(credMass+credMass_half), "%"))
+	x
+}
+
 HDIofICDF = function( ICDFname , credMass=0.95 , tol=1e-8 , ... ) {
   # Arguments:
   #   ICDFname is R's name for the inverse cumulative density function
