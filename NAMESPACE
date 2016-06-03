@@ -76,6 +76,8 @@ export(stanfit2mcmc.list)
 export(DbdaDensPlot2)
 export(DbdaDensPlot)
 export(diag.mcmc)
+export(HDIofMCMC)
+export("HDIofMCMC_for_stanfit")
 #export(diagStanFit)
 
 export(legoplot)
