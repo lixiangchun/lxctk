@@ -142,8 +142,8 @@ HDIofMCMC = function( sampleVec , credMass=0.95 ) {
   return( HDIlim )
 }
 
-HDIofMCMC_for_stanfit <- function(stanFit, credMass=0.95) {
-	sfit <- summary(stanFit)
+HDIofMCMC.stanfit <- function(stanFit, credMass=0.95) {
+	sfit <- rstan::summary(stanFit)
 	parNames <- rownames(sfit$summary)
 	codaFit<- stanfit2mcmc.list(stanFit)
 	results <- list()
