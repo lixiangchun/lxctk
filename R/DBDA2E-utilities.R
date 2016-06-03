@@ -142,6 +142,7 @@ HDIofMCMC = function( sampleVec , credMass=0.95 ) {
   return( HDIlim )
 }
 
+## HDIofMCMC.stanfit was added by Li XC
 HDIofMCMC.stanfit <- function(stanFit, credMass=0.95) {
 	sfit <- rstan::summary(stanFit)
 	parNames <- rownames(sfit$summary)
