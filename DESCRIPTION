@@ -1,12 +1,12 @@
 Package: lxctk
 Title: Li Xiangchun's tool-kit (lxctk)
-Version: 1.55
-Date: 2016-05-23
+Version: 1.60
+Date: 2016-08-26
 Author: Li Xiangchun
 Maintainer: Li Xiangchun <lixiangchun@genomics.cn>
-Description: Next-gen sequencing analysis tool-kits, beginning from visualization. "hustlxc" was renamed to "lixctk" since version 1.45
-Depends: R (>= 2.12.2), RColorBrewer, sm, rmeta, grid, nnet, survival, coda, rstan
-Suggests: rgl, Ckmeans.1d.dp, cluster, clusterSim, plotrix, fpc, MASS, isva, fastICA, parallel, RSQLite, fastcluster, rstan, coda, Nozzle.R1
+Description: My bioinformatics toolkit.
+Depends: R (>= 2.12.2), RColorBrewer, sm, rmeta, grid, nnet, survival, coda, rstan, arm
+Suggests: rgl, Ckmeans.1d.dp, cluster, clusterSim, plotrix, fpc, MASS, isva, fastICA, parallel, RSQLite, fastcluster, Nozzle.R1, SomaticSignatures, muscle, msa, VSURF
 Imports: RColorBrewer
 License: GPL-2
 Packaged: 2015-12-12 09:30:31 UTC; lixiangchun
