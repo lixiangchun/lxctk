@@ -55,7 +55,7 @@ mutsig.pathway <- function(categs.file, coverage.file, mutations.file, output.fi
 	}
 
 if (is.null(pathway)) {
-	data('CanonicalCancerPathway', package='hustlxc')
+	data('LixcCuratedPathway', package='lxctk')
 }
 for (i in 1:nrow(pathway)) { 
 	pathway.name = pathway[i,2]

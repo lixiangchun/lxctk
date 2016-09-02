@@ -84,15 +84,16 @@ context3d<-function(z,alpha=1,scalexy=10,scalez=1,gap=0.2,
   axes3d("y-+",labels=TRUE)
 }
 
-legoplot <- function(originalGenomes_file=system.file('data/stad_regular_GC_originalGenomes.txt', package='lxctk'), alpha=0.8, scalez=0.5, gap=0.1, contexts_file=system.file('data/contexts.txt',package='lxctk'), snapshot_fig, piechart_fig)
+legoplot <- function(originalGenomes_file=system.file('data/stad_regular_GC_originalGenomes.txt', package='lxctk'), counts=NULL, alpha=0.8, scalez=0.5, gap=0.1, contexts_file=system.file('data/contexts.txt',package='lxctk'), snapshot_fig, piechart_fig)
 {
 	library(rgl)
 	#contexts <- read.table('/Users/lixiangchun/Public/WorkSpace/Project/DigestiveSystemCancer/LiverCancer/decipherMutationalProcesses/mult/contexts.txt',header=FALSE,stringsAsFactors=FALSE)
 	contexts <- read.table(contexts_file, header=FALSE, stringsAsFactors=FALSE)
-	x <- read.table(originalGenomes_file)
-	counts <- rowSums(x)
+	if (is.null(counts)) {
+		x <- read.table(originalGenomes_file)
+		counts <- rowSums(x)
+	}
 	names(counts) <- contexts$V3
-
 	col1 <- c('#702E33','#BE5C81','#836E8D','#EC8C70','#596C22','#A7B762')
 	C.A=col1[1]
 	C.G=col1[2]

@@ -14,7 +14,7 @@ sort.data.frame <- function(df, col.names = NULL)
 
 plot.mutational.processes <-
   function(d = NULL, mutational.processes.file = NULL,
-           color = brewer.pal(6, "Paired"),
+           color = c('#5B0800','#9C988A','#ED3400','#7A95B6','#433C30','#F77E5C'),
            main = 'Mutational Signature',
            sig.labs = NULL,
            figpdf = 'mutation_signature.pdf')

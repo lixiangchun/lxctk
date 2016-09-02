@@ -54,12 +54,13 @@ get.gene.spectra <- function(d, gene) {
 # @dl: a list returned by get.gene.spectra
 # @type: CL - MutSigCL, FN - MutSigFN
 # @hotspot.alg: algorithm to define hotspot statistic, 'ratio' is much faster than 'hclust'
-MutSigXX.Statistic <- function(dl, type=c('CL', 'FN'), hotspot.alg=c('hclust','ratio')) {
+MutSigXX.Statistic <- function(dl, type=c('CL', 'FN'), hotspot.alg=c('hclust','ratio'), report.hotspot.num=FALSE) {
 	#type <- match.arg(type)
 	# match.arg takes extra time to parse input parameters. In a many permutations, aggregated time
 	#+ is is not trivival. So I use the 2 following clauses to replace match.arg.
 	type = type[1]
 	hotspot.alg = hotspot.alg[1]
+	hotspot.num = 0
 	if (type == 'FN') {
 		# 1: access list with name, i.e. spectra, or names(dl)
 		y = sapply(names(dl), function(i, dl) mean(dl[[i]]), dl)
@@ -82,13 +83,16 @@ MutSigXX.Statistic <- function(dl, type=c('CL', 'FN'), hotspot.alg=c('hclust','r
 				clust.table = try(table( cutree(fastcluster::hclust(dist(y), method='complete'), h=3)  ), silent=TRUE)
 				if (class(clust.table) != 'try-error') {
 					statistic = sum(clust.table[clust.table >=2 & clust.table / sum(clust.table) >=0.02]) / y.n
+					if (report.hotspot.num) {
+						hotspot.num = sum(clust.table >=2 & (clust.table / sum(clust.table) >=0.02))
+					}
 				}
 			} else {
 				statistic = y.n / length(unique(y))	 - 1.0
 			}
 		}
 	}
-	statistic
+	list(statistic=statistic, hotspot.num=hotspot.num)
 }
 
 # Permutating for only 1 gene.
@@ -112,17 +116,23 @@ one.gene.permute <- function(bkgr, obs, type=c('CL', 'FN'), hotspot.alg=c('hclus
 			xp = sample_with_replace(x, x0.n, TRUE)
 			bkgr_perm[[spectrum]] = xp
 		}
-		statistic = MutSigXX.Statistic(bkgr_perm, type, hotspot.alg)
+		#statistic = MutSigXX.Statistic(bkgr_perm, type, hotspot.alg)
+		MutSigXX.Statistic(bkgr_perm, type, hotspot.alg)
 	}
-	statistic0 = MutSigXX.Statistic(obs, type, hotspot.alg)
+	#statistic0 = MutSigXX.Statistic(obs, type, hotspot.alg)
+	res = MutSigXX.Statistic(obs, type, hotspot.alg, report.hotspot.num=TRUE)
+	statistic0 = res$statistic
+	hotspot.num = res$hotspot.num
 
-	perm.statistics <- lapply(1:nperm, one.gene.permute.core, bkgr=bkgr, obs=obs, spectra=spectra, type=type, hotspot.alg=hotspot.alg)
+	#perm.statistics <- lapply(1:nperm, one.gene.permute.core, bkgr=bkgr, obs=obs, spectra=spectra, type=type, hotspot.alg=hotspot.alg)
+	r <- lapply(1:nperm, one.gene.permute.core, bkgr=bkgr, obs=obs, spectra=spectra, type=type, hotspot.alg=hotspot.alg)
 	# lapply returns an array of lists, concatenate all lists into a vector using unlist.
-	perm.statistics <- unlist(perm.statistics)
+	#perm.statistics <- unlist(perm.statistics)
+	perm.statistics <- as.numeric(do.call("rbind", r)[,1])
 
 	counter = sum(perm.statistics >= statistic0)
 	p=(counter + 1) / (nperm + 1)
-	list(statistic=statistic0, p.value=p)
+	list(statistic=statistic0, hotspot.num=hotspot.num, p.value=p)
 }
 
 # `bkgrSWLiteDB`: An SQLite object to bkgr feature data
@@ -142,20 +152,20 @@ mutsigclfn <- function(bkgrSQLiteDB, obs_data, outfile='out.txt', genes=c(), typ
 		quit('no')
 	}
 	if (hotspot.alg[1] != "hclust" &&  hotspot.alg[1] != "ratio") {
-		cat(sprintf('\nERROR - hotspot.alg must be in c("hclust","ratio"), input type is "%s".\n\n', hotspot.alg[1]), file=stderr())
-		quit('no')
+		stop(sprintf('\nERROR - hotspot.alg must be in c("hclust","ratio"), input type is "%s".\n\n', hotspot.alg[1]), file=stderr())
 	}
 
-	pbiSMG_Core <- function(gene, bkgr_data, obs_data, type, hotspot.alg, nperm=nperm, mc.cores=mc.cores) {
+	mutsigclfn_core <- function(gene, bkgr_data, obs_data, type, hotspot.alg, nperm=nperm, mc.cores=mc.cores) {
 		bkgr = get.gene.spectra(bkgr_data, gene)
 		obs = get.gene.spectra(obs_data, gene)
 		if (is.list(bkgr) && is.list(obs)) {
 			r = one.gene.permute(bkgr, obs, type, hotspot.alg, nperm, mc.cores)
-			INFO = sprintf(" - pbiSMG_Core gene - %s, statistic = %.3f, p-value = %g\n", gene, r$statistic, r$p.value)
-			cat(as.character(Sys.time()), INFO, sep="", file=stderr())
-			res = list(gene=gene, statistic=r$statistic, p.value=r$p.value)
+			INFO = sprintf("- mutsigclfn_core gene - %s, statistic = %.3f, hotspot.num = %g, p-value = %g\n", gene, r$statistic, r$hotspot.num, r$p.value)
+			#cat(as.character(Sys.time()), INFO, sep="", file=stderr())
+			cat("PID:", Sys.getpid(), INFO, sep=" ", file=stderr())
+			res = list(gene=gene, statistic=r$statistic, hotspot.num=r$hotspot.num, p.value=r$p.value)
 		} else {
-			res = list(gene=gene, statistic=NA, p.value=NA)
+			res = list(gene=gene, statistic=NA, hotspot.num=NA, p.value=NA)
 		}
 		res
 	}
@@ -165,33 +175,35 @@ mutsigclfn <- function(bkgrSQLiteDB, obs_data, outfile='out.txt', genes=c(), typ
 		genes = unique(as.character(obs_data[,1]))
 	}
 	if (type == 'CL' && min.cl > 0) {
-		cat('INFO - pbiSMG - To save time, pbiSMG selects candidate genes to perform MutSigCL analysis.\n', file=stderr())
+		cat('INFO - mutsigclfn - To save time, mutsigclfn selects candidate genes to perform MutSigCL analysis.\n', file=stderr())
 		ri = mclapply(genes, function(gene, obs_data, type, hotspot.alg) MutSigXX.Statistic(get.gene.spectra(obs_data, gene), type, hotspot.alg), obs_data, type, hotspot.alg, mc.cores=mc.cores)	
 		genes = genes[ri>min.cl]
 	}
 
 	cat('Number of genes to be permutated:', length(genes), '\n', file=stderr())
-	cat('INFO - pbiSMG - Begin permutation in parallel.\n', file=stderr())
+	cat('INFO - mutsigclfn - Begin permutation in parallel.\n', file=stderr())
 	# mclapply returns an array of lists.
-	cl = mclapply(genes, pbiSMG_Core, bkgr_data, obs_data, type, hotspot.alg, nperm, mc.cores=mc.cores)
+	cl = mclapply(genes, mutsigclfn_core, bkgr_data, obs_data, type, hotspot.alg, nperm, mc.cores=mc.cores)
 
 	###############Output to file########################
 	cl.n <- length(cl)
 	genes = rep(0, cl.n)
 	statistics = rep(0, cl.n)
+	hotspot.nums = rep(0, cl.n)
 	p.values = rep(1, cl.n)
 	for (i in 1:cl.n) {
 		genes[i] = cl[[i]]$gene
 		statistics[i] = cl[[i]]$statistic
+		hotspot.nums[i] = cl[[i]]$hotspot.num
 		p.values[i] = cl[[i]]$p.value
 	}
-	data = data.frame(gene=genes, statistic=statistics, p.value=p.values)
+	data = data.frame(gene=genes, statistic=statistics, hotspot.num=hotspot.nums, p.value=p.values)
 	data = na.omit(data)
 	data$q.value = p.adjust(data$p.value, method='fdr')    # BH-FDR adjusted
 	data = data[order(data$q.value, decreasing=FALSE),]    # order data by q.value in ascending order.
 	write.table(data, file=outfile, row.names=FALSE, quote=FALSE, sep="\t")
 	tck=proc.time()[3]
-	cat(sprintf('Total time elapsed: %s secs.\n', tck-tck0), file=stderr())
+	cat(as.character(Sys.time()), sprintf('- Total time elapsed: %s secs.\n', tck-tck0), file=stderr())
 	if (is.SQLiteConnection(bkgr_data)) {
 		dbDisconnect(bkgr_data)
 	}

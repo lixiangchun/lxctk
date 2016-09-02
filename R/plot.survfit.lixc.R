@@ -24,7 +24,7 @@ plot.survfit.lixc <- function(survdiff.formula, data, legend.labels=c('Wild-type
 	else
 		texts <- sprintf("HR=%.3g (%s CI: %.3g ~ %.3g); p=%.3g", HR, "95%", lower, upper, surv.p.value)
 	if (no.ci.lab)
-		texts <- sprintf("Log-rank test, p-value=%.3g", surv.p.value)
+		texts <- sprintf("Log-rank test, p=%.2g", surv.p.value)
 
 	####################KM-Curve#######################
 	if (!is.null(pngfig)) {
