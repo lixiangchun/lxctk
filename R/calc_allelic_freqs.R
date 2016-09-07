@@ -1,5 +1,15 @@
 
-calc_allelic_freqs <- function(bamFileLists, fastaFile, OncotatorFile, outfile, lines=80, flag=FALSE)
+# bamFileLists: bamfile list
+# fastaFile: bwa-indexed reference sequence
+# OncotatorFile: Oncotator annotated file
+# outfile: output file
+# lines: process # lines each time. Reduce this number if too many bam files provided as input
+# flag: If TRUE return a data.frame, may be very large if there huge number of mutations
+# minBQ: minBaseQuality
+# minMQ: minMapQuality
+# minDepth: allelic frequency is set to 0 if sequencing depth at the mutation site is < minDepth
+
+calc_allelic_freqs <- function(bamFileLists, fastaFile, OncotatorFile, outfile, lines=80, flag=FALSE, minBQ=0, minMQ=13, minDepth=8)
 {
 	fls <- PileupFiles(bamFileLists)
 	fa <- open(FaFile(fastaFile))
@@ -18,17 +28,19 @@ calc_allelic_freqs <- function(bamFileLists, fastaFile, OncotatorFile, outfile, 
 	colnames(intervals) <- c('chr','start','end','ref','alt')
 
 	message("Finished initializing inputs.")
-
-	idx <- split(1:nrow(d), ceiling(seq_along(1:nrow(d))/lines))
+	
 	x <- list()
+	idx <- split(1:nrow(d), ceiling(seq_along(1:nrow(d))/lines))
 	n <- length(idx)
 	for (i in 1:n) {
-		r <- calc_allelic_freqs_core(fls=fls, fa=fa, intervals=intervals[idx[[i]],])	
-		#x[[i]] <- cbind(d[idx[[i]],], r)
+		r <- calc_allelic_freqs_core(fls=fls, fa=fa, intervals=intervals[idx[[i]],], minBQ=minBQ, minMQ=minMQ)	
 		xi <- cbind(d[idx[[i]],], r)
 		if (flag) {
 			x[[i]] <- xi
 		}
+		# If there is error: unimplemented type 'list' in 'EncodeElement' (often occurs in data.frame returned by do.call(...)), 
+		#+use the following clause to process xi:
+		# xi <- data.frame(lapply(xi, as.character), stringsAsFactors=FALSE)
 		if (i == 1) {
 			write.table(xi, file=outfile, quote=FALSE, sep="\t")
 		} else {
@@ -37,9 +49,11 @@ calc_allelic_freqs <- function(bamFileLists, fastaFile, OncotatorFile, outfile, 
 		message(sprintf("Finished processing chunk `%s/%s`.", i, n))
 	}
 	close(fa)
-	#write.table(do.call("rbind", x), file=outfile, quote=FALSE, sep="\t")
-	if (flag)
+	if (flag) {
+		x <- do.call("rbind", x)
+		x <- data.frame(lapply(x, as.character), stringsAsFactors=FALSE)
 		return(x)
+	}
 }
 
 # bamFileLists: an array of bam files
@@ -49,7 +63,11 @@ calc_allelic_freqs <- function(bamFileLists, fastaFile, OncotatorFile, outfile, 
 # OncotatorFile: Oncotator annotated somatic mutations
 # intervals: a data frame refers to somatic mutations. The data frame must have 5 columns and the column names must be
 #+ c('chr','start','end','ref','alt'). Note that only SNV is supported.
-calc_allelic_freqs_core <- function(bamFileLists, fls, fastaFile, fa, OncotatorFile=NULL, intervals=NULL, outfile)
+# minBQ: minBaseQuality
+# minMQ: minMapQuality
+# minDepth: allelic frequency is set to 0 if sequencing depth at the mutation site is < minDepth
+
+calc_allelic_freqs_core <- function(bamFileLists, fls, fastaFile, fa, OncotatorFile=NULL, intervals=NULL, minBQ=0, minMQ=13, minDepth=8)
 {
 	#calcInfo <- function(x, ref_base, alt_base) {
 	#	x1 <- x[[1]]$seq[,,]
@@ -85,7 +103,7 @@ calc_allelic_freqs_core <- function(bamFileLists, fls, fastaFile, fa, OncotatorF
 		fls <- PileupFiles(bamFileLists)	
 	}
 	which <- GenomicRanges::makeGRangesFromDataFrame(intervals)
-	param <- ApplyPileupsParam(which=which, yieldBy="position", what="seq", maxDepth=1e6,minBaseQuality=0,minMapQuality=13)
+	param <- ApplyPileupsParam(which=which, yieldBy="position", what="seq", maxDepth=1e6,minBaseQuality=minBQ,minMapQuality=minMQ)
 	pls <- applyPileups(fls, calcInfo, param=param)
 	cat(">>>>>> Finished pileup for all sites. <<<<<<\n")
 
@@ -102,13 +120,13 @@ calc_allelic_freqs_core <- function(bamFileLists, fls, fastaFile, fa, OncotatorF
 	allelic_freqs <- 
 	lapply(1:nrow(intervals), function(i, pls, intervals) {
 		alt_base <- intervals$alt[i]
-		ref_base <- intervals$ref[i]
+		#ref_base <- intervals$ref[i]
 		n_alt_counts <- pls[[i]]$seq[,,1][alt_base,]
 		#n_ref_counts <- pls[[i]]$seq[,,1][ref_base,]
 		#depths <- colSums(pls[[1]]$seq[,,1][c(ref_base, alt_base),])
 		depths <- colSums(pls[[i]]$seq[,,1])
 		afs <- n_alt_counts / depths
-		afs[depths < 8] <- 0 
+		afs[depths < minDepth] <- 0 
 		afs
 	}, pls, intervals)
 	#z <- cbind(d, do.call("rbind", allelic_freqs))

@@ -5,7 +5,7 @@
 Calculate allelic frequencies for multiple sites of multiple bam files.
 }
 \usage{
-calc_allelic_freqs(bamFileLists, fastaFile, OncotatorFile, outfile, lines=80, flag=FALSE)
+calc_allelic_freqs(bamFileLists, fastaFile, OncotatorFile, outfile, lines=80, flag=FALSE, minBQ=0, minMQ=13, minDepth=8)
 }
 \arguments{
   \item{bamFileLists}{A vector of bam files.}
@@ -14,6 +14,9 @@ calc_allelic_freqs(bamFileLists, fastaFile, OncotatorFile, outfile, lines=80, fl
   \item{outfile}{Output file.}
   \item{lines}{Number of sites processed at a time, if there are many bam files reduced it to lower memory usage.}
   \item{flag}{If TRUE, a data frame will be returned.}
+  \item{minBQ}{minBaseQuality.}
+  \item{minMQ}{minMapQuality.}
+  \item{minDepth}{allelic frequency is set to 0 if sequencing depth at the mutation site is < minDepth.}
 }
 \details{
 }
