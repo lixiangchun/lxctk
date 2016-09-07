@@ -6,7 +6,7 @@ Author: Li Xiangchun
 Maintainer: Li Xiangchun <lixiangchun@genomics.cn>
 Description: My bioinformatics toolkit.
 Depends: R (>= 2.12.2), RColorBrewer, sm, rmeta, grid, nnet, survival, coda, rstan, arm
-Suggests: rgl, Ckmeans.1d.dp, cluster, clusterSim, plotrix, fpc, MASS, isva, fastICA, parallel, RSQLite, fastcluster, Nozzle.R1, SomaticSignatures, muscle, msa, VSURF
+Suggests: rgl, Ckmeans.1d.dp, cluster, clusterSim, plotrix, fpc, MASS, isva, fastICA, parallel, RSQLite, fastcluster, Nozzle.R1, SomaticSignatures, pmsignature, muscle, msa, VSURF, randomForest, copynumber, CNVPanelizer
 Imports: RColorBrewer
 License: GPL-2
 Packaged: 2015-12-12 09:30:31 UTC; lixiangchun
