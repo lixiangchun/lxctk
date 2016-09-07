@@ -33,7 +33,7 @@ calc_allelic_freqs <- function(bamFileLists, fastaFile, OncotatorFile, outfile, 
 	idx <- split(1:nrow(d), ceiling(seq_along(1:nrow(d))/lines))
 	n <- length(idx)
 	for (i in 1:n) {
-		r <- calc_allelic_freqs_core(fls=fls, fa=fa, intervals=intervals[idx[[i]],], minBQ=minBQ, minMQ=minMQ)	
+		r <- calc_allelic_freqs_core(fls=fls, fa=fa, intervals=intervals[idx[[i]],], minBQ=minBQ, minMQ=minMQ, minDepth=minDepth)	
 		xi <- cbind(d[idx[[i]],], r)
 		if (flag) {
 			x[[i]] <- xi
