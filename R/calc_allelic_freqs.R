@@ -23,7 +23,9 @@ calc_allelic_freqs <- function(bamFileLists, fastaFile, OncotatorFile, outfile, 
 	}
 
 	d <- subset(d, Variant_Type=="SNP")
-	d$Chromosome <- paste('chr', d$Chromosome, sep="")
+	if (any(grepl('^chr',seqnames(seqinfo(fa)))) && !any(grepl('^chr', d$Chromosome))) {
+		d$Chromosome <- paste('chr', d$Chromosome, sep="")
+	}
 	mafFields <- c('Chromosome','Start_position','End_position','Reference_Allele','Tumor_Seq_Allele2')
 	intervals <- d[,mafFields]
 	colnames(intervals) <- c('chr','start','end','ref','alt')
