@@ -95,7 +95,7 @@ export(ggPlotMutationalSignatures)
 ##export(AlexandrovEtAl_signatures_corr)
 export(COSMIC_signatures_corr)
 export(cosine)
-export(bayesSomaticSignatures)
+export(BayesSomaticSignatures)
 
 export(RunMEGSA)
 export(funMEGSA)
