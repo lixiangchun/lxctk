@@ -89,11 +89,13 @@ export(legoplot)
 export(rank.based.INT)
 
 export(ggforestplot)
+export(multiplot)
 export(ggboxplot)
 export(ggPlotMutationalSignatures)
 ##export(AlexandrovEtAl_signatures_corr)
 export(COSMIC_signatures_corr)
 export(cosine)
+export(bayesSomaticSignatures)
 
 export(RunMEGSA)
 export(funMEGSA)
