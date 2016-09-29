@@ -382,7 +382,7 @@ motifMatrix <- function (vr, group = "sampleNames", normalize = TRUE)
 # colnames(x) = c("chr","start","end","ref","alt","sampleid")
 # bayesSomaticSignatures(x, "PANCAN_nonhypermutated")
 
-BayesSomaticSignatures <- function(x, tumor.type="tumor.type", hyper=FALSE, fafile=NULL, prior="L1KL", niter=100000) {
+BayesSomaticSignatures <- function(x, tumor.type="tumor.type", hyper=FALSE, fafile=NULL, out.dir="OUTPUT_lego96", prior="L1KL", niter=100000) {
 
 library(gplots)
 library(ggplot2)
@@ -416,7 +416,7 @@ message("Finished preparing lego96 mutation matrix.")
 #source(paste(SOURCE,"plot.signature.tools.Alexsandrov.R",sep=""))
 
 CURRENT <- paste(getwd(),"/",sep="")
-OUTPUT <- paste(CURRENT,"OUTPUT_lego96/",sep="")
+OUTPUT <- paste(CURRENT,sprintf("%s/",out.dir),sep="")
 #system(paste("mkdir",OUTPUT,sep=" "))
 if (!file.exists(OUTPUT)) dir.create(OUTPUT)
 
