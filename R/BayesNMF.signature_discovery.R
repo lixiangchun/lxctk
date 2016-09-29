@@ -367,31 +367,25 @@ motifMatrix <- function (vr, group = "sampleNames", normalize = TRUE)
 
 
 
-# x: a data.frame with at least 5 columns, i.e. 'chr', 'start', 'end', 'ref', 'alt' and 'sample'
+# x: a data.frame with at least 5 columns, i.e. 'chr', 'start', 'end', 'ref', 'alt' and 'sampleid'
 # tumor.type: a character string
 # hyper: Default = FALSE ; TRUE - to reduce the effect of hyper-mutant samples in the signature discovery
-# fafile: bwa-indexed reference
-# prior: Default = L1KL (expoential priors); L2KL (half-normal priors)
-# Note that the seqlevels of mutation data and reference must be identifical, or ERROR will occur during mutation context extraction.
-
 # An example:
 # library(data.table)
 # d <- fread("cut -f5,6,7,10,11,13,16,287  /ifshk5/PC_HUMAN_AP/PMO/F13TSHNCKF0797_HUMdjpX/lixc/TCGA/Oncotator/PANCAN_Mutation_with_Unknown_chrM_annotation_removed_uniq_attached_hypermutated_info.maf | grep -v ^#")
 # setDf(d)
 # x <- subset(d, Variant_Type=="SNP" & Is_HyperMutated=="No", c("Chromosome","Start_position","End_position", "Reference_Allele", "Tumor_Seq_Allele2", "Tumor_Sample_Barcode"))
 # colnames(x) = c("chr","start","end","ref","alt","sampleid")
-# bayesSomaticSignatures(x, "PANCAN_nonhypermutated")
-
-BayesSomaticSignatures <- function(x, tumor.type="tumor.type", hyper=FALSE, fafile=NULL, out.dir="OUTPUT_lego96", prior="L1KL", niter=100000) {
+# BayesNMF.MutationalSignatures(x, "PANCAN_nonhypermutated")
+BayesNMF.MutationalSignatures <- function(x, tumor.type, hyper=FALSE, fafile=NULL, out.dir="OUTPUT_lego96", prior="L1KL") {
 
 library(gplots)
 library(ggplot2)
 library(reshape2)
-
+  
 library(VariantAnnotation)
   
 vr <- VRanges(seqnames=x$chr, range=IRanges(start=x$start, end=x$end), ref=x$ref, alt=x$alt, sampleNames=x$sampleid)
-print("If the seqlevels of input mutation and reference are not identifical, ERROR will occur during mutation context extraction.")
 print("seqlevels(vr):")
 print(seqlevels(vr))
 
@@ -466,9 +460,9 @@ if (hyper) {
 ##########################################################
 for (i in 1:n.iter) {
 	if (prior=="L1KL") {
-		res <- BayesNMF.L1KL(as.matrix(lego96),niter,a0,tol,Kcol,Kcol,1.0)
+		res <- BayesNMF.L1KL(as.matrix(lego96),100000,a0,tol,Kcol,Kcol,1.0)
 	} else {
-		res <- BayesNMF.L2KL(as.matrix(lego96),niter,a0,tol,Kcol,Kcol,1.0)
+		res <- BayesNMF.L2KL(as.matrix(lego96),100000,a0,tol,Kcol,Kcol,1.0)
 	}
 	save(res,file=paste(OUTPUT,paste(method,a0,i,"RData",sep="."),sep=""))
 }
