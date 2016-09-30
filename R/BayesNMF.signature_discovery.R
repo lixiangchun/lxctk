@@ -174,6 +174,7 @@ plot.activity.barplot <- function(H.mid,H.norm,scale,tumor.type) {
                 axis.text.y = element_text(hjust = 0.5,size=12*scale, family="mono"),
                 axis.text = element_text(size = 12*scale, family = "mono"))
         ordering <- order(colSums(H.mid),decreasing=T)
+        H.mid.nr <- dim(H.mid)[1] # added by LiXC
         H.mid <- H.mid[,ordering]
         rownames(H.mid) <- paste("W",seq(1:nrow(H.mid)),sep="")
         H.norm <- H.norm[,ordering]
@@ -191,7 +192,11 @@ plot.activity.barplot <- function(H.mid,H.norm,scale,tumor.type) {
         scale <- 1
         p = ggplot(df2,aes(x=factor(Sample),y=Activity,fill=factor(Signature)))
         p = p+geom_bar(stat="identity",position='stack',color='black',alpha=0.9)
-        p = p + scale_fill_manual(values=c("red","cyan","yellow","blue","magenta","gray50","orange","darkgreen","brown","black",rainbow(10)[4:10]))
+        if (H.mid.nr < 17) { 
+          p = p + scale_fill_manual(values=c("red","cyan","yellow","blue","magenta","gray50","orange","darkgreen","brown","black",rainbow(10)[4:10]))
+        } else { # In case the signature number is larger than colors provided above. LiXC
+          p = p + scale_fill_manual(values = 1:H.mid.nr)
+        }
         p = p + facet_grid(class0 ~ ., scale = "free_y")
         p = p + ggtitle(paste("Siganture Activities in",tumor.type,sep=" "))
         p = p + theme(plot.title=element_text(lineheight=1.0,face="bold",size=14*scale))
@@ -207,7 +212,7 @@ plot.activity.barplot <- function(H.mid,H.norm,scale,tumor.type) {
 }
 
 ######### Collecting data from several independent runs
-get.stats.simulation <- function(tumor,n.iter,OUTPUT) {
+get.stats.simulation <- function(tumor,n.iter,method,a0,OUTPUT) { # method and a0 are missing in the original code. LiXC
         W.ALL <- list()
         H.ALL <- list()
         K.ALL <- list()
@@ -379,11 +384,11 @@ motifMatrix <- function (vr, group = "sampleNames", normalize = TRUE)
 # BayesNMF.MutationalSignatures(x, "PANCAN_nonhypermutated")
 BayesNMF.MutationalSignatures <- function(x, tumor.type, hyper=FALSE, fafile=NULL, out.dir="OUTPUT_lego96", prior="L1KL") {
 
-library(gplots)
-library(ggplot2)
-library(reshape2)
-  
-library(VariantAnnotation)
+suppressMessages(library(gplots))
+suppressMessages(library(ggplot2))
+suppressMessages(library(reshape2))
+suppressMessages(library(BSgenome))
+suppressMessages(library(VariantAnnotation))
   
 vr <- VRanges(seqnames=x$chr, range=IRanges(start=x$start, end=x$end), ref=x$ref, alt=x$alt, sampleNames=x$sampleid)
 print("seqlevels(vr):")
@@ -399,7 +404,7 @@ if (!is.null(fafile)) {
 }
 lego96 <- motifMatrix(motifs, group = "sampleNames", normalize = FALSE)
 rownames(lego96) <- sub("\\.","",sub(" ","",rownames(lego96)))
-rm(x, motifs, x, vr)
+#rm(motifs, vr)
 message("Finished preparing lego96 mutation matrix.")
 
 #CURRENT <- paste(getwd(),'/',sep="")
@@ -420,12 +425,12 @@ if (!file.exists(OUTPUT)) dir.create(OUTPUT)
 ## Rownames of the lego matrix should be 4-letters ex) CGTA (C to G mutation at 5'-TCA-3'contexts) (see the acoompanied example lego matrix).
 ###########################################################
 
-#####################################################
-############## BayesNMF parameters
-############## n.iter = number of independent simulations
-############## Kcol = number of initial signatures
-############## tol = tolerance for convergence
-############## a0 = hyper-parameter
+message("\n#####################################################")
+message("############## BayesNMF parameters")
+message("############## n.iter = number of independent simulations")
+message("############## Kcol = number of initial signatures")
+message("############## tol = tolerance for convergence")
+message("############## a0 = hyper-parameter\n")
 n.iter <- 10 
 Kcol <- 96   
 tol <- 1.e-07
@@ -433,10 +438,10 @@ a0 <- 10
 tumor.type <- tumor.type ### please specify your cohort name here
 ##################################
 
-##################################
-############### Choose pirors for W and H
-############### Default = L1KL (expoential priors); L2KL (half-normal priors)
-##################################
+message("##################################")
+message("############### Choose pirors for W and H")
+message("############### Default = L1KL (expoential priors); L2KL (half-normal priors)")
+message("##################################\n")
 #prior <- "L1KL" 
 if (prior=="L1KL") {
 	method <- paste("L1KL.lego96",tumor.type,sep=".")
@@ -455,9 +460,9 @@ if (hyper) {
 }
 ##################################
 
-##########################################################
-###################### Running the algorithms ############
-##########################################################
+message("##########################################################")
+message("###################### Running the algorithms ############")
+message("##########################################################\n")
 for (i in 1:n.iter) {
 	if (prior=="L1KL") {
 		res <- BayesNMF.L1KL(as.matrix(lego96),100000,a0,tol,Kcol,Kcol,1.0)
@@ -465,25 +470,28 @@ for (i in 1:n.iter) {
 		res <- BayesNMF.L2KL(as.matrix(lego96),100000,a0,tol,Kcol,Kcol,1.0)
 	}
 	save(res,file=paste(OUTPUT,paste(method,a0,i,"RData",sep="."),sep=""))
+	message(sprintf("###### Iteration - %s.", i))
 }
 
-##########################################################
-###################### Analysis ##########################
-##########################################################
-res.WES <- get.stats.simulation(tumor.type,n.iter,OUTPUT)
+message("##########################################################")
+message("###################### Analysis ##########################")
+message("##########################################################\n")
+res.WES <- get.stats.simulation(tumor.type,n.iter,method,a0,OUTPUT)
+message("##########Finished running get.stats.simulation###########\n")
 
-############## frequency figure 
+message("############## frequency figure \n")
+message(sprintf("Method - %s\n",method))
 pdf(file=paste(OUTPUT,paste(method,a0,"signature.freq.pdf",sep="."),sep=""),width=4,height=5)
 s1 <- 1.5
 s2 <- 2.0
 par(mfrow=c(1,1))
 par(mar=c(5,5,2,1))
-        barplot(table(unlist(res.WES[[4]])),cex=s1,cex.axis=s1,cex.main=s1,cex.names=s1,cex.lab=s1,xlab="# of signatures",ylab="Freq.",main=paste(tumor.type,sep="."))
+barplot(table(unlist(res.WES[[4]])),cex=s1,cex.axis=s1,cex.main=s1,cex.names=s1,cex.lab=s1,xlab="# of signatures",ylab="Freq.",main=paste(tumor.type,sep="."))
 dev.off()
 
-##########################################################
-############## select the best solution (maximum posteria solution) for given K
-##########################################################
+message("##########################################################")
+message("############## select the best solution (maximum posteria solution) for given K")
+message("##########################################################\n")
 tmpK <- unlist(res.WES[[4]])
 unique.K <- sort(unique(tmpK))
 n.K <- length(unique.K)
@@ -510,6 +518,7 @@ MAP.nontrivial <- MAP[names(MAP)!=1]
 ##########################################################
 
 n.K <- length(MAP.nontrivial)
+message(sprintf("###### n.K = %s.", n.K))
 if (n.K > 0) { 
 for (j in 1:n.K) {
         load(paste(OUTPUT,paste(method,a0,MAP.nontrivial[[j]],"RData",sep="."),sep=""))
@@ -578,15 +587,16 @@ for (j in 1:n.K) {
         }
 	W.norm <- apply(W.mid,2,function(x) x/sum(x))
 
-	##########################################################
-        ############# W.norm = extracted signatures normalized to one
-	############# H.mid = activity of signatures across samples (expected mutations associated with signatures)
-	############# H.norm = normalized signature activity 
-	##########################################################
-        WH <- list(W.norm,H.mid,H.norm)
+	message("##########################################################")
+  message("      ############# W.norm = extracted signatures normalized to one")
+	message("############# H.mid = activity of signatures across samples (expected mutations associated with signatures)")
+	message("############# H.norm = normalized signature activity")
+	message("##########################################################")
+	      # WH <- list(W.norm,H.mid,H.norm)
+        WH <- list(W.mid=W.mid, W.norm=W.norm,H.mid=H.mid,H.norm=H.norm)
         save(WH,file=paste(OUTPUT,paste(method,a0,paste("MAP",K,sep=""),"WH.RData",sep="."),sep=""))
 
-        ############# Activity plot
+        message("############# Activity plot\n")
 	p1 <- plot.activity.barplot(H.mid,H.norm,1.0,tumor.type)
 	pdf(file = paste(OUTPUT,paste(method,a0,"activity.barplot1",K,"pdf",sep="."),sep=""),width=15,height=12)
 	        plot(p1)
