@@ -384,28 +384,63 @@ motifMatrix <- function (vr, group = "sampleNames", normalize = TRUE)
 # BayesNMF.MutationalSignatures(x, "PANCAN_nonhypermutated")
 BayesNMF.MutationalSignatures <- function(x, tumor.type, hyper=FALSE, fafile=NULL, out.dir="OUTPUT_lego96", prior="L1KL") {
 
+suppressMessages(library(data.table))
 suppressMessages(library(gplots))
 suppressMessages(library(ggplot2))
 suppressMessages(library(reshape2))
 suppressMessages(library(BSgenome))
 suppressMessages(library(VariantAnnotation))
   
-vr <- VRanges(seqnames=x$chr, range=IRanges(start=x$start, end=x$end), ref=x$ref, alt=x$alt, sampleNames=x$sampleid)
-print("seqlevels(vr):")
-print(seqlevels(vr))
+message("##################### Check for input data format ###################\n")
+if (is.data.table(x) || is.data.frame(x)) {
+  if (is.data.table(x)) {
+    data.table::setDF(x)
+  }
+  if (!all(colnames(x) %in% c("chr","start","end","ref","alt","sampleid"))) {
+    message("The following colname(s) not found in input data.table:")
+    cat(setdiff(c("chr","start","end","ref","alt","sampleid"), colnames(x)), "\n", file=stderr())
+    stop("Please check your input data.")
+  }
+} else if (file.exists(x)) { ## oncotator annotated file
+  x <- fread(x)
+  data.table::setDF(x)
+  x <- subset(x, Variant_Type=="SNP", c("Chromosome","Start_position","End_position", "Reference_Allele", "Tumor_Seq_Allele2", "Tumor_Sample_Barcode"))
+  colnames(x) <- c("chr","start","end","ref","alt","sampleid")
+  if (all(grepl("^chr", x$chr))) x$chr <- paste("chr",x$chr, sep="")
+} else {
+  stop("The input mutation data must be either a data.frame, data.table or a valid oncotator output file.")
+}
+###########################################################################
 
+message("##################### Extract mutation contexts ###################\n")
 if (!is.null(fafile)) {
   fa <- FaFile(fafile)
-  motifs <- mutationContext(vr, fa)
-  close(fa)
 } else {
   library(BSgenome.Hsapiens.UCSC.hg19)
-  motifs <- mutationContext(vr, BSgenome.Hsapiens.UCSC.hg19)
+  fa <- BSgenome.Hsapiens.UCSC.hg19
 }
+
+vr <- VRanges(seqnames=x$chr, range=IRanges(start=x$start, end=x$end), ref=x$ref, alt=x$alt, sampleNames=x$sampleid)
+message("Chromosomes extracted from input mutated data:")
+cat(seqlevels(vr), "\n")
+#if (length(intersect(seqlevels(fa), seqlevels(vr))) == 0) {
+if (any(seqlevels(vr) %in% seqlevels(fa)) == FALSE) {
+  message("Chromosomes extracted from reference:")
+  cat(seqlevels(fa), "\n")
+  if (!is.null(fa)) {
+    close(fa)
+  }
+  stop("There is no intersection between chromosomes extracted from the input mutated data and those extracted from reference.")
+}
+
+#########################################################
+motifs <- mutationContext(vr, fa)
+if (!is.null(fafile)) close(fa)
+
 lego96 <- motifMatrix(motifs, group = "sampleNames", normalize = FALSE)
 rownames(lego96) <- sub("\\.","",sub(" ","",rownames(lego96)))
 #rm(motifs, vr)
-message("Finished preparing lego96 mutation matrix.")
+message("#############Finished preparing lego96 mutation matrix.")
 
 #CURRENT <- paste(getwd(),'/',sep="")
 #SOURCE <- paste(CURRENT,"SOURCE/",sep="")
