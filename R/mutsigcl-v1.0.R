@@ -126,9 +126,8 @@ getObsGeneSigature <- function(vr, HugoSymbol=NULL, EntrezGeneId=NULL) {
   } else {
     stop("Missing Hugo_Symbol or Entrez_Gene_Id.")
   }
-  #d <- data.frame(start=start(gene.vr), collapseContext=gene.vr$collapseContext)
-  #return(d)
-  return(gene.vr)
+  d <- data.frame(start=start(gene.vr), collapseContext=gene.vr$collapseContext)
+  return(d)
 }
 
 ## maf <- read.maf(fn)
@@ -221,10 +220,8 @@ getLongestIsoformPerPosNucleotieGRanges <- function(d, Entrez_Gene_Id=NULL, Hugo
 getBkgrGeneSignature <- function(d, HugoSymbol="VHL", EntrezGeneId=7428, removeSilent=FALSE) {
   mutTbl <- list(A=c("C","G","T"), C=c("A","G","T"), G=c("A","C","T"), T=c("A","C","G"))
   gr <- getLongestIsoformPerPosNucleotieGRanges(d, Hugo_Symbol = HugoSymbol, Entrez_Gene_Id = EntrezGeneId)
-  if (is.null(gr)) {
-    #return(data.frame(start=NA, collapseContext=NA))
-    return(VRanges())
-  }
+  if (is.null(gr))
+    return(data.frame(start=NA, collapseContext=NA))
   
   seq <- getSeq(Hsapiens, gr)
   seq <- do.call("c", seq)
@@ -235,9 +232,8 @@ getBkgrGeneSignature <- function(d, HugoSymbol="VHL", EntrezGeneId=7428, removeS
   positions <- rep(start(gr), each=3)
   vr <- VRanges(seqnames(gr)[1], IRanges(positions, positions), ref = ref, alt = alt, sampleNames = "sampleId")
   cmc <- collapseMutationContext(vr=mutationContext(vr, Hsapiens), removeSilent = removeSilent)
-  #bkgrSignature <- data.frame(start=start(cmc), collapseContext=cmc$collapseContext)
-  #return(bkgrSignature)
-  return(cmc)
+  bkgrSignature <- data.frame(start=start(cmc), collapseContext=cmc$collapseContext)
+  return(bkgrSignature)
 }
 
 
@@ -287,18 +283,17 @@ getGrpId <- function(y, y.n=length(y)) {
   return(grp)
 }
 
-## bkgrSignature and obsSignature are bot VRanges type.
 mutsigcl_core <- function(bkgrSignature, obsSignature, global=FALSE, nsim=1000) {
   
   mutation_sampling <- function(obsSignature, bkgrSignature, global) {
     if (global) { ## Sampling without taking into account mutation context
-      x <- start(bkgrSignature)
-      k <- length(obsSignature)
+      x <- bkgrSignature$start
+      k <- nrow(obsSignature)
       y <- sample(x, k, replace = TRUE)
     } else { ## Sampling according to mutation context
       contexts <- table(obsSignature$collapseContext)
       y <- unlist(lapply(names(contexts), function(context) {
-        x <- start(bkgrSignature)[bkgrSignature$collapseContext == context]
+        x <- bkgrSignature$start[bkgrSignature$collapseContext == context]
         k <- contexts[context]
         sample(x, k, replace = TRUE)  
       }))
@@ -306,7 +301,7 @@ mutsigcl_core <- function(bkgrSignature, obsSignature, global=FALSE, nsim=1000) 
     r <- getHotspotStatistic(y)
     return(r)
   }
-  y0 <- start(obsSignature)
+  y0 <- obsSignature$start
   r <- getHotspotStatistic(y0)
   statistic0 <- r[1]
   hotspot.num0 <- r[2]
@@ -376,7 +371,7 @@ mutsigcl <- function(maf.file, ccds.file, out.file=NULL, maf=NULL, d=NULL, remov
     message(geneId)
     #library(BSgenome.Hsapiens.UCSC.hg19) ## For running in parallel, loading BSgenome in each worker is required. I have not tested this. NOT WORK!!!!!!
     bkgrSignature <- getBkgrGeneSignature(d, EntrezGeneId = geneId, removeSilent = removeSilent)
-    if (length(bkgrSignature) == 0)
+    if (any(is.na(bkgrSignature)))
       return(c(NA,NA,NA,NA))
     obsSignature <- getObsGeneSigature(vr, EntrezGeneId = geneId)
     res <- mutsigcl_core(bkgrSignature, obsSignature, global = FALSE, nsim = nsim)
