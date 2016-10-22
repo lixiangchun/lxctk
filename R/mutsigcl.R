@@ -23,9 +23,11 @@ annotateVRanges <- function(vr) {
   return(unique(vr)) ## I don't know why predictCoding output duplicated annotations??
 }
 
-annotate.dbnsfp <- function(vr, dbnsfp.fl, verbose=FALSE) {
+annotate.dbnsfp <- function(vr, dbnsfp.fl, tbx=NULL,verbose=FALSE) {
   #f <- open.TabixFile(dbnsfp.fl)
-  tbx <- TabixFile(dbnsfp.fl)
+  if (is.null(tbx)) {
+    tbx <- TabixFile(dbnsfp.fl)
+  }
   h <- headerTabix(tbx)
   tbx.seqnames <- h$seqnames
   tbx.headers <- strsplit(h$header, "\t")[[1]]
@@ -319,6 +321,68 @@ mutsigcl_core <- function(bkgrSignature, obsSignature, global=FALSE, nsim=1000) 
   p.value <- (k + 1) / (nsim + 1)
   
   return(c(statistic0, hotspot.num0, p.value))
+}
+
+## One gene mutsigfn
+mutsigfn_core <- function(bkgr.vr, obs.vr, dbnsfp.tabix, global=FALSE, nsim=1000) {
+  
+  FN.score.sampling <- function(bkgr.vr, obs.vr, global, score_name) {
+    obs.scores <- na.omit(mcols(obs.vr)[,score_name])
+    if (global) {
+      bkgr.scores <- na.omit(mcols(bkgr.vr)[,score_name])
+      y <- sample(bkgr.scores, length(obs.scores), replace = TRUE)
+    } else {
+      contexts <- table(obs.vr$collapseContext[!is.na(mcols(obs.vr)[,score_name])])
+      y <- unlist(lapply(names(contexts), function(context) {
+        x <- na.omit(mcols(bkgr.vr)[,score_name][bkgr.vr$collapseContext == context])
+        k <- contexts[context]
+        sample(x, k, replace = TRUE)  
+      }))
+    }
+    return(sum(y) >= sum(obs.scores))
+  }
+  FN.score.fast.sampling <- function(bkgr.l, obs.l, global, score_idx) {
+    obs.scores <- obs.l[[score_idx]]$FN.score
+    if (global) {
+      bkgr.scores <- bkgr.l[[score_idx]]$FN.score
+      y <- sample(bkgr.scores, length(obs.scores), replace = TRUE)
+    } else {
+      contexts <- table(obs.l[[1]]$collapseContext)
+      y <- unlist(lapply(names(contexts), function(context) {
+        x <- bkgr.l[[score_idx]]$FN.score[bkgr.l[[score_idx]]$collapseContext == context]
+        k <- contexts[context]
+        sample(x, k, replace = TRUE)  
+      }))
+    }
+    return(sum(y) >= sum(obs.scores))
+  }
+  
+  #bkgr.vr <- collapseMutationContext(vr=bkgr.vr)
+  #obs.vr = collapseMutationContext(vr=obs.vr[obs.vr$Variant_Type=="SNP"])
+  bkgr.vr <- annotate.dbnsfp(bkgr.vr, tbx = dbnsfp.tabix, verbose = TRUE)
+  obs.vr <- annotate.dbnsfp(obs.vr, tbx = dbnsfp.tabix, verbose = TRUE)
+  bkgr.vr$SIFT_score <- 1.0 - bkgr.vr$SIFT_score
+  obs.vr$SIFT_score <- 1.0 - obs.vr$SIFT_score
+  
+  score_names <- c("SIFT_score","Polyphen2_HDIV_score","CADD_raw")
+  obs.l <- lapply(score_names, function(score_name) {
+    na.omit(data.frame(FN.score=mcols(obs.vr)[,score_name], collapseContext=obs.vr$collapseContext))
+  })
+  bkgr.l <- lapply(score_names, function(score_name) {
+    na.omit(data.frame(FN.score=mcols(bkgr.vr)[,score_name], collapseContext=bkgr.vr$collapseContext))
+  })
+  
+  ###################-----functions to calculate p-value -----------#####################
+  calc.p.value <- function(bkgr.vr, obs.vr, global, score_name, nsim) {
+    k <- sapply(1:nsim, function(i) FN.score.sampling(bkgr.vr, obs.vr, global, score_name))
+    return((sum(k) + 1) / (nsim + 1))
+  }
+  fast.calc.p.value <- function(bkgr.l, obs.l, global, score_idx, nsim) {
+    k <- sapply(1:nsim, function(i) FN.score.fast.sampling(bkgr.l, obs.l, global, score_idx))
+    return((sum(k) + 1) / (nsim + 1))
+  }
+  
+  fast.calc.p.value(bkgr.l, obs.l, global, score_idx, nsim)
 }
 
 # maf.file: the filename of mutation file annotated by oncotator
