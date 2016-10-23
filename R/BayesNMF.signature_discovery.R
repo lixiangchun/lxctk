@@ -372,7 +372,7 @@ motifMatrix <- function (vr, group = "sampleNames", normalize = TRUE)
 
 
 
-# x: a data.frame with at least 5 columns, i.e. 'chr', 'start', 'end', 'ref', 'alt' and 'sampleid'
+# x: a data.frame or oncotator output file with at least 5 columns, i.e. 'chr', 'start', 'end', 'ref', 'alt' and 'sampleid'
 # tumor.type: a character string
 # hyper: Default = FALSE ; TRUE - to reduce the effect of hyper-mutant samples in the signature discovery
 # An example:
@@ -381,8 +381,15 @@ motifMatrix <- function (vr, group = "sampleNames", normalize = TRUE)
 # setDf(d)
 # x <- subset(d, Variant_Type=="SNP" & Is_HyperMutated=="No", c("Chromosome","Start_position","End_position", "Reference_Allele", "Tumor_Seq_Allele2", "Tumor_Sample_Barcode"))
 # colnames(x) = c("chr","start","end","ref","alt","sampleid")
-# BayesNMF.MutationalSignatures(x, "PANCAN_nonhypermutated")
-BayesNMF.MutationalSignatures <- function(x, tumor.type, hyper=FALSE, fafile=NULL, out.dir="OUTPUT_lego96", prior="L1KL") {
+# BayesNMF.mutation.signature(x, "PANCAN_nonhypermutated")
+
+## Comment on running BayesNMF.mutation.signature on phase 1 precision medicine with both L1KL and L2KL priors.
+## For the liver cancer, L2KL produced 3 signatures: (1) ERCC2 signature (broad patterns of base substitutions see doi:10.1038/ng.3557);
+##+(2) Aristolochic acid signature; (3) age-related signature (i.e. *CpG); whereas L1KL produced 2 signatures: (2) and mixture of (1) and (3).
+## For kidney and lung cancers, L1KL and L2KL priors produced exactly the same signatures.
+## In summary, L2KL produced better result for liver cancer than L1KL and with comparable results for kidney and lung cancers.
+
+BayesNMF.mutation.signature <- function(x, tumor.type, hyper=FALSE, fafile=NULL, out.dir="OUTPUT_lego96", prior="L1KL") {
 
 suppressMessages(library(data.table))
 suppressMessages(library(gplots))
@@ -391,28 +398,26 @@ suppressMessages(library(reshape2))
 suppressMessages(library(BSgenome))
 suppressMessages(library(VariantAnnotation))
   
-message("##################### Check for input data format ###################\n")
+##-----------Check for input data format---------------##
+message("Check for input data format.")
 if (is.data.table(x) || is.data.frame(x)) {
-  if (is.data.table(x)) {
-    data.table::setDF(x)
-  }
   if (!all(colnames(x) %in% c("chr","start","end","ref","alt","sampleid"))) {
     message("The following colname(s) not found in input data.table:")
     cat(setdiff(c("chr","start","end","ref","alt","sampleid"), colnames(x)), "\n", file=stderr())
     stop("Please check your input data.")
   }
+  x <- subset(x, ref %in% c("A","C","G","T") & alt %in% c("A","C","G","T")) ## removing indels
 } else if (file.exists(x)) { ## oncotator annotated file
-  x <- fread(x)
-  data.table::setDF(x)
+  x <- suppressWarnings(fread(x))
   x <- subset(x, Variant_Type=="SNP", c("Chromosome","Start_position","End_position", "Reference_Allele", "Tumor_Seq_Allele2", "Tumor_Sample_Barcode"))
   colnames(x) <- c("chr","start","end","ref","alt","sampleid")
-  if (all(grepl("^chr", x$chr))) x$chr <- paste("chr",x$chr, sep="")
+  if (!all(grepl("^chr", x$chr))) x$chr <- paste("chr",x$chr, sep="")
 } else {
   stop("The input mutation data must be either a data.frame, data.table or a valid oncotator output file.")
 }
-###########################################################################
+##-----------End of checking for input data format---------------##
 
-message("##################### Extract mutation contexts ###################\n")
+#message("##################### Extract mutation contexts ###################\n")
 if (!is.null(fafile)) {
   fa <- FaFile(fafile)
 } else {
@@ -423,14 +428,13 @@ if (!is.null(fafile)) {
 vr <- VRanges(seqnames=x$chr, range=IRanges(start=x$start, end=x$end), ref=x$ref, alt=x$alt, sampleNames=x$sampleid)
 message("Chromosomes extracted from input mutated data:")
 cat(seqlevels(vr), "\n")
-#if (length(intersect(seqlevels(fa), seqlevels(vr))) == 0) {
 if (any(seqlevels(vr) %in% seqlevels(fa)) == FALSE) {
   message("Chromosomes extracted from reference:")
   cat(seqlevels(fa), "\n")
   if (!is.null(fa)) {
     close(fa)
   }
-  stop("There is no intersection between chromosomes extracted from the input mutated data and those extracted from reference.")
+  stop("There is no intersection between chromosomes from input mutated data and reference sequence.")
 }
 
 #########################################################
@@ -440,7 +444,7 @@ if (!is.null(fafile)) close(fa)
 lego96 <- motifMatrix(motifs, group = "sampleNames", normalize = FALSE)
 rownames(lego96) <- sub("\\.","",sub(" ","",rownames(lego96)))
 #rm(motifs, vr)
-message("#############Finished preparing lego96 mutation matrix.")
+message("Finished preparing lego96 mutation matrix for mutation signature analysis.")
 
 #CURRENT <- paste(getwd(),'/',sep="")
 #SOURCE <- paste(CURRENT,"SOURCE/",sep="")
@@ -460,23 +464,21 @@ if (!file.exists(OUTPUT)) dir.create(OUTPUT)
 ## Rownames of the lego matrix should be 4-letters ex) CGTA (C to G mutation at 5'-TCA-3'contexts) (see the acoompanied example lego matrix).
 ###########################################################
 
-message("\n#####################################################")
-message("############## BayesNMF parameters")
-message("############## n.iter = number of independent simulations")
-message("############## Kcol = number of initial signatures")
-message("############## tol = tolerance for convergence")
-message("############## a0 = hyper-parameter\n")
+#message("\n#####################################################")
+#message("############## BayesNMF parameters")
+#message("############## n.iter = number of independent simulations")
+#message("############## Kcol = number of initial signatures")
+#message("############## tol = tolerance for convergence")
+#message("############## a0 = hyper-parameter\n")
 n.iter <- 10 
 Kcol <- 96   
 tol <- 1.e-07
 a0 <- 10
-tumor.type <- tumor.type ### please specify your cohort name here
-##################################
 
-message("##################################")
-message("############### Choose pirors for W and H")
-message("############### Default = L1KL (expoential priors); L2KL (half-normal priors)")
-message("##################################\n")
+#message("##################################")
+#message("############### Choose pirors for W and H")
+#message("############### Default = L1KL (expoential priors); L2KL (half-normal priors)")
+#message("##################################\n")
 #prior <- "L1KL" 
 if (prior=="L1KL") {
 	method <- paste("L1KL.lego96",tumor.type,sep=".")
@@ -495,27 +497,28 @@ if (hyper) {
 }
 ##################################
 
-message("##########################################################")
-message("###################### Running the algorithms ############")
-message("##########################################################\n")
+#message("##########################################################")
+#message("###################### Running the algorithms ############")
+#message("##########################################################\n")
+message("Running the algorithms.")
 for (i in 1:n.iter) {
+  message(sprintf("Iteration - %s.", i))
 	if (prior=="L1KL") {
 		res <- BayesNMF.L1KL(as.matrix(lego96),100000,a0,tol,Kcol,Kcol,1.0)
 	} else {
 		res <- BayesNMF.L2KL(as.matrix(lego96),100000,a0,tol,Kcol,Kcol,1.0)
 	}
 	save(res,file=paste(OUTPUT,paste(method,a0,i,"RData",sep="."),sep=""))
-	message(sprintf("###### Iteration - %s.", i))
 }
 
-message("##########################################################")
-message("###################### Analysis ##########################")
-message("##########################################################\n")
+#message("##########################################################")
+#message("###################### Analysis ##########################")
+#message("##########################################################\n")
+message("Analyzing BayesNMF results...")
 res.WES <- get.stats.simulation(tumor.type,n.iter,method,a0,OUTPUT)
-message("##########Finished running get.stats.simulation###########\n")
 
-message("############## frequency figure \n")
-message(sprintf("Method - %s\n",method))
+message("Plotting frequency figure.")
+#message(sprintf("Method - %s\n",method))
 pdf(file=paste(OUTPUT,paste(method,a0,"signature.freq.pdf",sep="."),sep=""),width=4,height=5)
 s1 <- 1.5
 s2 <- 2.0
@@ -524,9 +527,10 @@ par(mar=c(5,5,2,1))
 barplot(table(unlist(res.WES[[4]])),cex=s1,cex.axis=s1,cex.main=s1,cex.names=s1,cex.lab=s1,xlab="# of signatures",ylab="Freq.",main=paste(tumor.type,sep="."))
 dev.off()
 
-message("##########################################################")
-message("############## select the best solution (maximum posteria solution) for given K")
-message("##########################################################\n")
+#message("##########################################################")
+#message("############## select the best solution (maximum posteria solution) for given K")
+#message("##########################################################\n")
+message("Select the best solution (maximum posteria solution) from given K.")
 tmpK <- unlist(res.WES[[4]])
 unique.K <- sort(unique(tmpK))
 n.K <- length(unique.K)
@@ -553,7 +557,7 @@ MAP.nontrivial <- MAP[names(MAP)!=1]
 ##########################################################
 
 n.K <- length(MAP.nontrivial)
-message(sprintf("###### n.K = %s.", n.K))
+message(sprintf("n.K = %s.", n.K))
 if (n.K > 0) { 
 for (j in 1:n.K) {
         load(paste(OUTPUT,paste(method,a0,MAP.nontrivial[[j]],"RData",sep="."),sep=""))
@@ -622,21 +626,21 @@ for (j in 1:n.K) {
         }
 	W.norm <- apply(W.mid,2,function(x) x/sum(x))
 
-	message("##########################################################")
-  message("      ############# W.norm = extracted signatures normalized to one")
-	message("############# H.mid = activity of signatures across samples (expected mutations associated with signatures)")
-	message("############# H.norm = normalized signature activity")
-	message("##########################################################")
+	#message("##########################################################")
+  #message("      ############# W.norm = extracted signatures normalized to one")
+	#message("############# H.mid = activity of signatures across samples (expected mutations associated with signatures)")
+	#message("############# H.norm = normalized signature activity")
+	#message("##########################################################")
 	      # WH <- list(W.norm,H.mid,H.norm)
         WH <- list(W.mid=W.mid, W.norm=W.norm,H.mid=H.mid,H.norm=H.norm)
         save(WH,file=paste(OUTPUT,paste(method,a0,paste("MAP",K,sep=""),"WH.RData",sep="."),sep=""))
 
-        message("############# Activity plot\n")
+        message("Plotting activity plot.")
 	p1 <- plot.activity.barplot(H.mid,H.norm,1.0,tumor.type)
 	pdf(file = paste(OUTPUT,paste(method,a0,"activity.barplot1",K,"pdf",sep="."),sep=""),width=15,height=12)
 	        plot(p1)
 	dev.off()
 }
 }
-
+message("Successfully finished analyzing mutation signature.")
 }
