@@ -194,7 +194,6 @@ get.bkgr.dbnsfp <- function(d, Entrez_Gene_Id, dbnsfp.fl, tbx=NULL, verbose=FALS
   if (!grepl("^chr",chr))
     chr <- sprintf("chr%s", chr)
   vr <- VRanges(chr, IRanges(pos, pos), ref = d$ref, alt = d$alt)
-  vr <- vr[ref(vr) %in% c("A","C","G","T") & alt(vr) %in% c("A","C","G","T")]
   options(warn=-1) # ignore warnings in as.numeric when NA is present.
   vr$aaref <- d$aaref
   vr$aaalt <- d$aaalt
@@ -203,6 +202,7 @@ get.bkgr.dbnsfp <- function(d, Entrez_Gene_Id, dbnsfp.fl, tbx=NULL, verbose=FALS
   vr$SIFT_score <- as.numeric(d[, SIFT_score_i])
   vr$Polyphen2_HDIV_score <- as.numeric(d[, Polyphen2_HDIV_score_i])
   vr$CADD_raw <- as.numeric(d[, CADD_raw_i])
+  vr <- vr[ref(vr) %in% c("A","C","G","T") & alt(vr) %in% c("A","C","G","T")] # keep only single nucleotide substitutions
   vr <- collapseMutationContext(vr=vr, removeSilent = FALSE)
   return(vr)
 }
