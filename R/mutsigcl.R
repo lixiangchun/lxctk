@@ -135,6 +135,7 @@ annotate.dbnsfp <- function(vr, dbnsfp.fl, tbx=NULL, verbose=FALSE) {
   message("Querying dbNSFP ended.")
   d <- do.call("rbind",d)
   d <- as.data.frame(d, stringsAsFactors=FALSE)
+  d <- na.omit(d) ## This is definitely required. When there is NA in d, error will occur in following code: vr <- VRanges(...)
   colnames(d) <- tbx.headers
   
   if (!is.null(tbx))
