@@ -133,9 +133,9 @@ annotate.dbnsfp <- function(vr, dbnsfp.fl, tbx=NULL, verbose=FALSE) {
     return(r)
     }, mc.cores=ifelse(length(vr)>50, mc.cores, 1))
   message("Querying dbNSFP ended.")
+  
   d <- do.call("rbind",d)
   d <- as.data.frame(d, stringsAsFactors=FALSE)
-  d <- na.omit(d) ## This is definitely required. When there is NA in d, error will occur in following code: vr <- VRanges(...)
   colnames(d) <- tbx.headers
   
   if (!is.null(tbx))
@@ -183,9 +183,20 @@ get.bkgr.dbnsfp <- function(d, Entrez_Gene_Id, dbnsfp.fl, tbx=NULL, verbose=FALS
     return(r)
   })
   message("Querying dbNSFP for background information ended.")
+  
+  ##------- remove entries with all NA values. Don't do this in annotate.dbnsfp since the input for annotate.dbnsfp is a VRanges. There is no
+  #+error when attach a new feature (even though it's NA) to an existing VRanges. ---------------##
+  ## This is definitely required. When there is NA in d, error will occur in following code: vr <- VRanges(...)
+  idxs <- which(sapply(d, function(a) any(is.na(a[1:4])) == FALSE)) # a[1:4] are chrom, position, ref and alt, which cannot be NA in VRanges. So I removed it in advance.
+  d <- lapply(idxs, function(i) d[[i]])
+  ##--------------------------
   d <- do.call("rbind",d)
   d <- as.data.frame(d, stringsAsFactors=FALSE)
-  d <- na.omit(d) ## This is definitely required. When there is NA in d, error will occur in following code: vr <- VRanges(...)
+  
+  ##------- remove entries with all NA values ---------------##
+  #d <- na.omit(d) 
+  ##--------------------------
+  
   colnames(d) <- tbx.headers
 
   if (!is.null(tbx))
@@ -560,6 +571,11 @@ mutsigfn_core <- function(bkgr.vr, obs.vr, dbnsfp.fl, nsim=1000, mc.cores=1) {
     return((sum(k) + 1) / (nsim + 1))
   }
   fast.calc.p.value <- function(bkgr.l, obs.l, global, score_idx, nsim) {
+    if (nrow(obs.l[[score_idx]]) == 0 || all(is.na(obs.l[[score_idx]]))) {
+      # dbNSFP has no annotation for some mutations even they are annotated to be exonic by oncotator.
+      # This `if` clause is able to present ERROR message: Error in sum(k) : invalid 'type' (character) of argument, Calls: MutSigCLFN ... mutsigfn_core2 -> mutsigfn_core -> fast.calc.p.value
+      return(1)
+    }
     k <- mclapply(1:nsim, function(i) FN.score.fast.sampling(bkgr.l, obs.l, global, score_idx), mc.cores = mc.cores)
     k <- unlist(k)
     return((sum(k) + 1) / (nsim + 1))
@@ -803,7 +819,7 @@ MutSigCL <- function(maf.file, ccds.file, out.file=NULL, removeSilent=TRUE, nsim
   invisible(r)
 }
 
-MutSigCLFN <- function(maf.file, ccds.file, dbnsfp.file=NULL, out.file=NULL, removeSilent=TRUE, method=c("CL","FN"), nsim=10000, minSampleNum=3, mc.cores=NULL) {
+MutSigCLFN <- function(maf.file, ccds.file, dbnsfp.file=NULL, out.file=NULL, removeSilent=TRUE, method=c("CL","FN"), nsim=100000, minSampleNum=3, mc.cores=NULL) {
   method_selected <- match.arg(method)
   if (method_selected == "FN" && is.null(dbnsfp.file)) {
     stop("You must provide the filename of dbNSFP for dbnsfp.file to run MutSigFN.")
