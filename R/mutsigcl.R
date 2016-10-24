@@ -116,7 +116,7 @@ annotate.dbnsfp <- function(vr, dbnsfp.fl, tbx=NULL, verbose=FALSE) {
     r <- rep(NA, length(tbx.headers))
     #a <- scanTabix(tbx, param = GRanges(sub("^chr","",seqnames(e)), ranges(e)))[[1]]
     # Or
-    #a <- unlist(scanTabix(tbx, param = GRanges(sub("^chr","",seqnames(e)), ranges(e)))) ## cannot run in mclapply when mc.cores > 1
+    #a <- unlist(scanTabix(tbx, param = GRanges(sub("^chr","",seqnames(e)), ranges(e)))) ## cannot run in mclapply when mc.cores > 1 because workers cannot access tbx created in the meain thread.
     a <- seqminer::tabix.read(tbx$path, sprintf("%s:%s-%s", sub("^chr","",seqnames(e)), start(e), end(e)))
     if (length(a) < 1)
       return(r)
@@ -163,7 +163,7 @@ get.bkgr.dbnsfp <- function(d, Entrez_Gene_Id, dbnsfp.fl, tbx=NULL, verbose=FALS
   
   gr <- getLongestCCDS(d, Entrez_Gene_Id = Entrez_Gene_Id)
   gr <- GRanges(sub("^chr","",seqnames(gr)), ranges(gr))
-  message(sprintf("Querying dbSNFP database for background information, number of GRanges = %d.", length(gr)))
+  message(sprintf("Querying dbSNFP database for background information for gene %s, number of GRanges = %d.", Entrez_Gene_Id, length(gr)))
 
   # call scanTabix to scan dbnsfp database for every mutation
   d <- lapply(gr, function(e) {
@@ -184,6 +184,7 @@ get.bkgr.dbnsfp <- function(d, Entrez_Gene_Id, dbnsfp.fl, tbx=NULL, verbose=FALS
   message("Querying dbNSFP for background information ended.")
   d <- do.call("rbind",d)
   d <- as.data.frame(d, stringsAsFactors=FALSE)
+  d <- na.omit(d) ## This is definitely required. When there is NA in d, error will occur in following code: vr <- VRanges(...)
   colnames(d) <- tbx.headers
 
   if (!is.null(tbx))
