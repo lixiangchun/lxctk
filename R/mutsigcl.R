@@ -819,7 +819,11 @@ MutSigCL <- function(maf.file, ccds.file, out.file=NULL, removeSilent=TRUE, nsim
   invisible(r)
 }
 
-MutSigCLFN <- function(maf.file, ccds.file, dbnsfp.file=NULL, out.file=NULL, removeSilent=TRUE, method=c("CL","FN"), nsim=100000, minSampleNum=3, mc.cores=NULL) {
+## The main engine to run MutSigCL and MutSigFN.
+# maf.file: oncotator annotated file
+# ccds.file: NCBI CCDS file
+# dbnsfp.file: pre-processed dbNSFP database when running MutSigFN.
+MutSigCLFN <- function(maf.file, ccds.file, dbnsfp.file=NULL, out.file=NULL, removeSilent=TRUE, method=c("CL","FN"), nsim=10000, minSampleNum=3, mc.cores=NULL) {
   method_selected <- match.arg(method)
   if (method_selected == "FN" && is.null(dbnsfp.file)) {
     stop("You must provide the filename of dbNSFP for dbnsfp.file to run MutSigFN.")
@@ -835,6 +839,6 @@ MutSigCLFN <- function(maf.file, ccds.file, dbnsfp.file=NULL, out.file=NULL, rem
   invisible(r)
 }
 
-maf.file="/Users/lixiangchun/Public/WorkSpace/Project/Precision_Medicine/Phase1_Mutations/Kidney_mutect2_PoN2_filtered.maf"
-ccds.file="/Users/lixiangchun/BaiduYunPan/BaiduYunPan/Database/ftp.ncbi.nlm.nih.gov/pub/CCDS/archive/Hs37.3/CCDS.current.txt.bz2"
-r=mutsigcl(maf=maf, d=d)
+#maf.file="/Users/lixiangchun/Public/WorkSpace/Project/Precision_Medicine/Phase1_Mutations/Kidney_mutect2_PoN2_filtered.maf"
+#ccds.file="/Users/lixiangchun/BaiduYunPan/BaiduYunPan/Database/ftp.ncbi.nlm.nih.gov/pub/CCDS/archive/Hs37.3/CCDS.current.txt.bz2"
+#r=mutsigcl(maf=maf, d=d)

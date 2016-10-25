@@ -375,6 +375,12 @@ motifMatrix <- function (vr, group = "sampleNames", normalize = TRUE)
 # x: a data.frame or oncotator output file with at least 5 columns, i.e. 'chr', 'start', 'end', 'ref', 'alt' and 'sampleid'
 # tumor.type: a character string
 # hyper: Default = FALSE ; TRUE - to reduce the effect of hyper-mutant samples in the signature discovery
+# fafile: bwa indexed reference fasta file
+# out.dir: output dir
+# prior: prior for Bayesian NMF, i.e. L1KL or L2KL
+# hyperCutoff: mutation number to define hypermutated samples. If this is set (e.g. 500), 
+#+------------ samples with > hyperCutoff mutations will be excluded. I might recommended to set hyper=TRUE if there are hypermutated samples.
+
 # An example:
 # library(data.table)
 # d <- fread("cut -f5,6,7,10,11,13,16,287  /ifshk5/PC_HUMAN_AP/PMO/F13TSHNCKF0797_HUMdjpX/lixc/TCGA/Oncotator/PANCAN_Mutation_with_Unknown_chrM_annotation_removed_uniq_attached_hypermutated_info.maf | grep -v ^#")
@@ -389,7 +395,7 @@ motifMatrix <- function (vr, group = "sampleNames", normalize = TRUE)
 ## For kidney and lung cancers, L1KL and L2KL priors produced exactly the same signatures.
 ## In summary, L2KL produced better result for liver cancer than L1KL and with comparable results for kidney and lung cancers.
 
-BayesNMF.mutation.signature <- function(x, tumor.type, hyper=FALSE, fafile=NULL, out.dir="OUTPUT_lego96", prior="L1KL") {
+BayesNMF.mutation.signature <- function(x, tumor.type, hyper=FALSE, fafile=NULL, out.dir="OUTPUT_lego96", prior="L1KL", hyperCutoff=NULL) {
 
 suppressMessages(library(data.table))
 suppressMessages(library(gplots))
@@ -416,6 +422,16 @@ if (is.data.table(x) || is.data.frame(x)) {
   stop("The input mutation data must be either a data.frame, data.table or a valid oncotator output file.")
 }
 ##-----------End of checking for input data format---------------##
+
+##-----------Removing hypermutated samples----------------##
+if (!is.null(hyperCutoff)) {
+  totalMutationNum <- table(x$sampleid)
+  hyperMutatedSamples <- names(totalMutationNum)[totalMutationNum > hyperCutoff]
+  x <- subset(x, !(sampleid %in% hyperMutatedSamples))
+  message("Removed hypermutated samples:")
+  print(hyperMutatedSamples, file=stderr())
+}
+##--------------------------------------------------------##
 
 #message("##################### Extract mutation contexts ###################\n")
 if (!is.null(fafile)) {
