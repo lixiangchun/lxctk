@@ -1,4 +1,42 @@
 
+
+## Combining multiple p-values. The source code was copied from combine.test(...) in package survcomp.
+combine.p.values <- function (p, weight, method = c("fisher", "z.transform", "logit"), 
+          hetero = FALSE, na.rm = FALSE) 
+{
+  if (hetero) {
+    stop("function to deal with heterogeneity is not implemented yet!")
+  }
+  method <- match.arg(method)
+  na.ix <- is.na(p)
+  if (any(na.ix) && !na.rm) {
+    stop("missing values are present!")
+  }
+  if (all(na.ix)) {
+    return(NA)
+  }
+  p <- p[!na.ix]
+  k <- length(p)
+  if (k == 1) {
+    return(p)
+  }
+  if (missing(weight)) {
+    weight <- rep(1, k)
+  }
+  switch(method, fisher = {
+    cp <- pchisq(-2 * sum(log(p)), df = 2 * k, lower.tail = FALSE)
+  }, z.transform = {
+    z <- qnorm(p, lower.tail = FALSE)
+    cp <- pnorm(sum(weight * z)/sqrt(sum(weight^2)), lower.tail = FALSE)
+  }, logit = {
+    tt <- (-sum(log(p/(1 - p))))/sqrt(k * pi^2 * (5 * k + 
+                                                    2)/(3 * (5 * k + 4)))
+    cp <- pt(tt, df = 5 * k + 4, lower.tail = FALSE)
+  })
+  return(cp)
+}
+
+
 read.ncbi.ccds.file <- function(ccds.file) {
   d <- read.table(ccds.file, comment.char = "", header = TRUE, sep = "\t", stringsAsFactors = FALSE)
   d <- subset(d, ccds_status == "Public")
@@ -718,8 +756,8 @@ mutsigcl <- function(maf.file, ccds.file, out.file=NULL, maf=NULL, d=NULL, remov
   colnames(r) <- c("statistic", "hotspot.num", "p.value", "global.p.value")
   r <- cbind(Hugo_Symbol=Hugo_Symbols, Entrez_Gene_Id=names(Hugo_Symbols), r)
   my.df <- data.frame(lapply(r, as.character), stringsAsFactors=FALSE)
-  my.df$q.value <- p.adjust(as.numeric(my.df$p.value), method="fdr")
-  my.df$global.q.value <- p.adjust(as.numeric(my.df$global.p.value), method="fdr")
+  my.df$q.value <- p.adjust(as.numeric(my.df$p.value), method="BY")
+  my.df$global.q.value <- p.adjust(as.numeric(my.df$global.p.value), method="BY")
   my.df$MutatedSamples <- sapply(hotspotMutatedGeneIds, function(e) geneToMutatedSamples[[e]])
   my.df <- my.df[order(my.df$q.value, decreasing = FALSE), ]
   if (!is.null(out.file)) {
@@ -760,10 +798,14 @@ MutSigFN <- function(maf.file, ccds.file, dbnsfp.file, out.file=NULL, nsim=10000
     Hugo_Symbols[[gene_id]]
   })
   r <- data.frame(Hugo_Symbol=Hugo_Symbols, Entrez_Gene_Id=recurrentlyMutatedGenes, mutatedSampleNum=mutatedSampleNums, r)
-  r$SIFT.q.value <- p.adjust(r$SIFT.p.value, method = "fdr")
-  r$Polyphen2.q.value <- p.adjust(r$Polyphen2.p.value, method = "fdr")
-  r$CADD.q.value <- p.adjust(r$CADD.p.value, method = "fdr")
-  r <- r[order(r$CADD.q.value, decreasing = FALSE),]
+  r$SIFT.q.value <- p.adjust(r$SIFT.p.value, method = "BY")
+  r$Polyphen2.q.value <- p.adjust(r$Polyphen2.p.value, method = "BY")
+  r$CADD.q.value <- p.adjust(r$CADD.p.value, method = "BY")
+  ##--------- Combining multipe p-values -----------------------##
+  r$combined.p.value <- sapply(1:nrow(r), function(i) combine.p.values(r[i,c("SIFT.p.value","Polyphen2.p.value","CADD.p.value")]))
+  r$combined.q.value <- p.adjust(r$combined.p.value, method = "BY")
+  ##------------------------------------------------------------##
+  r <- r[order(r$combined.q.value, decreasing = FALSE),]
   if (!is.null(out.file))
     write.table(r, file=out.file, quote = FALSE, sep = "\t", row.names = FALSE)
   invisible(r)
@@ -809,8 +851,8 @@ MutSigCL <- function(maf.file, ccds.file, out.file=NULL, removeSilent=TRUE, nsim
   r <- do.call("rbind", r)
   r <- cbind(Hugo_Symbol=Hugo_Symbols, Entrez_Gene_Id=names(Hugo_Symbols), r)
   r <- as.data.frame(r, stringsAsFactors = FALSE)
-  r$q.value <- p.adjust(as.numeric(r$p.value), method="fdr")
-  r$global.q.value <- p.adjust(as.numeric(r$global.p.value), method="fdr")
+  r$q.value <- p.adjust(as.numeric(r$p.value), method="BY")
+  r$global.q.value <- p.adjust(as.numeric(r$global.p.value), method="BY")
   r$MutatedSampleNum <- sapply(hotspotMutatedGeneIds, function(e) geneToMutatedSampleNum[[e]])
   r <- r[order(r$q.value, decreasing = FALSE), ]
   if (!is.null(out.file)) {
