@@ -803,9 +803,10 @@ MutSigFN <- function(maf.file, ccds.file, dbnsfp.file, out.file=NULL, nsim=10000
   r$CADD.q.value <- p.adjust(r$CADD.p.value, method = "BY")
   ##--------- Combining multipe p-values -----------------------##
   r$combined.p.value <- sapply(1:nrow(r), function(i) combine.p.values(r[i,c("SIFT.p.value","Polyphen2.p.value","CADD.p.value")]))
-  r$combined.q.value <- p.adjust(r$combined.p.value, method = "BY")
+  r$combined.BY.q.value <- p.adjust(r$combined.p.value, method = "BY")
+  r$combined.BH.q.value <- p.adjust(r$combined.p.value, method = "BH")
   ##------------------------------------------------------------##
-  r <- r[order(r$combined.q.value, decreasing = FALSE),]
+  r <- r[order(r$combined.BY.q.value, decreasing = FALSE),]
   if (!is.null(out.file))
     write.table(r, file=out.file, quote = FALSE, sep = "\t", row.names = FALSE)
   invisible(r)
