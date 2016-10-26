@@ -332,7 +332,7 @@ getObsGeneSigature <- function(vr, HugoSymbol=NULL, EntrezGeneId=NULL) {
   return(gene.vr)
 }
 
-## Function called by getLongestCCDS(...) and getLongestIsoformPerPosNucleotieGRanges(...).
+## Function called by getLongestCCDS(...) and getLongestIsoformPerPosNucleotieGRanges(...).  
 parse_cds_info <- function(a) {
   cds_locations <- a[10]
   chr <- as.character(a[1])
