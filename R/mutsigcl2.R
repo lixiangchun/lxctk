@@ -608,7 +608,7 @@ mutsigfn_core <- function(bkgr.vr, obs.vr, dbnsfp.fl, nsim=1000, mc.cores=1) {
       #y <- sample(bkgr.scores, length(obs.scores), replace = TRUE)
       y <- faster.sample(bkgr.scores, length(obs.scores), replace = TRUE)
     } else {
-      contexts <- table(obs.l[[1]]$collapseContext)
+      contexts <- table(obs.l[[score_idx]]$collapseContext)
       y <- unlist(lapply(names(contexts), function(context) {
         x <- bkgr.l[[score_idx]]$FN.score[bkgr.l[[score_idx]]$collapseContext == context]
         k <- contexts[context]
